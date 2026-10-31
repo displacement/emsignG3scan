@@ -1,180 +1,120 @@
-# emsignG3scan
+# About emsignG3scan
 
-`emsignG3scan` finds **bundled root-CA certificates** inside application bundles,
-native binaries, archives and Python packages — and flags the ones that should
-never be trusted.
+`emsignG3scan` scans application bundles, native binaries, and archives for
+**bundled root-CA certificates** and flags the **compromised emudhra / emSign G3
+root** (`CN=emSign ECC Root CA - G3`, O=*eMudhra Technologies Limited*,
+SHA-256 `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b`).
 
-## Why
+Apps that ship their own trust store can keep trusting a root long after the
+operating system has distrusted it — this tool finds those bundled copies.
 
-Operating systems maintain a curated "trust store" of root CAs, and browsers /
-distributions keep it up to date (roots get added, and critically, **removed**
-when a CA goes bad).  Many applications ship their **own** copy of a root store
-inside their bundle instead of using the system one:
+**Requirements:** Python **3.9+** and `pip`. `cryptography` (the only dependency)
+ships prebuilt wheels for all major OS/arch combinations, so **no compiler** is
+needed. No `git` binary is required to *run* the tool.
 
-* Java / Android `.apk` / `.jar` apps contain a `cacerts` keystore.
-* Electron, Python and curl-based bundles ship a `cacert.pem`.
-* Native binaries and shared libraries sometimes compile a few root DER blobs
-  directly into the binary.
+---
 
-When a root is **compromised** or **distrusted**, the OS update removes it — but
-a bundled copy inside an app keeps trusting it, leaving a persistent
-man-in-the-middle vector that survives every OS update until the app itself is
-updated.
+## Quick start (any OS)
 
-`emsignG3scan` answers the question: _"Which of my installed apps still bundle
-the compromised emudhra / emSign G3 root?"_
+```sh
+# 1. Clone
+git clone https://github.com/displacement/emsignG3scan.git
+cd emsignG3scan
 
-## The target root
+# 2. Install (pick one)
+python -m pip install .            # system/user install
+# or, recommended: pipx (isolated)
+pipx install .
 
-The watchlist currently contains the **emudhra / emSign G3** root that has been
-flagged as compromised:
+# 3. Run
+emsignG3scan /opt/myapp            # scan for the compromised G3 root
+emsignG3scan --verify              # confirm bundled reference PEMs are intact
+emsignG3scan --help
+```
 
-| Field | Value |
+---
+
+## Per-OS instructions
+
+Pick the tab for your operating system. Each section assumes a normal
+**developer** install (a terminal plus package manager).
+
+### Linux (Ubuntu / Debian, Fedora / RHEL, Arch, …)
+
+```sh
+# Install prerequisites (one command per distro)
+sudo apt  install -y git python3 python3-pip        # Debian/Ubuntu
+sudo dnf  install -y git python3 python3-pip        # Fedora
+sudo pacman -S --noconfirm git python python-pip    # Arch
+
+# Clone + install
+git clone https://github.com/displacement/emsignG3scan.git
+cd emsignG3scan
+python3 -m pip install .          # or: pipx install .
+
+emsignG3scan --help
+```
+
+> Tip: to scan the whole filesystem for bundled roots, run
+> `emsignG3scan --max-size 2GiB /` (skips `/proc`, `/sys`, `/dev`, `/run`
+> automatically).
+
+### macOS (Intel **and** Apple Silicon)
+
+```sh
+# Prerequisites via Homebrew (https://brew.sh)
+brew install git python
+
+# Clone + install
+git clone https://github.com/displacement/emsignG3scan.git
+cd emsignG3scan
+python3 -m pip install .          # or: pipx install .
+brew install pipx && pipx install .   # optional, isolated
+
+emsignG3scan --help
+```
+
+> `cryptography` has native arm64 **and** amd64 wheels, so this works on both
+> Apple Silicon and Intel Macs with no extra build tools.
+
+### Windows 10 / 11
+
+```bat
+:: 1. Install Git for Windows + Python 3.11+ from https://python.org
+::    (check "Add Python to PATH" during the Python installer)
+::    Then open Git Bash (or a regular PowerShell/cmd).
+
+:: 2. Clone + install
+git clone https://github.com/displacement/emsignG3scan.git
+cd emsignG3scan
+python -m pip install .          :: or: pipx install .
+
+emsignG3scan --help
+```
+
+> PowerShell note: `python` maps to `python.exe`; if that fails, try `py`.
+
+---
+
+## Usage highlights
+
+| Command | What it does |
 | --- | --- |
-| Common name | `emSign ECC Root CA - G3` |
-| Organisation | `eMudhra Technologies Limited` |
-| OU / Country | `emSign PKI` / `IN` |
-| Serial | `3cf607a968700eda8b84` |
-| SHA-256  | `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b` |
-| SHA-1 | `3043fa4ff257dca0c380ee2e58ea78b23fe6bbc1` |
-| Key | EC P-384 (ECC) |
-| Validity | 2018-02-18 → 2043-02-18 |
+| `emsignG3scan /opt/myapp` | Flag the compromised G3 root (default; exit `1` if found) |
+| `emsignG3scan --strict /opt` | Also flag the related G1 root from the same operator |
+| `emsignG3scan --all /opt` | Dump every bundled certificate, not just watchlist hits |
+| `emsignG3scan --format json /opt` | Machine-readable JSON output |
+| `emsignG3scan --no-extract /opt` | Don't unpack archives; scan raw bytes only |
+| `emsignG3scan --verify` | Confirm the shipped reference PEMs match the watchlist |
 
-It is an **EC P-384** root issued by the Indian CA **eMudhra** (which also
-operates the emSign brand).  Notably it is **not present in the public system
-trust bundle** (`cacert.pem`), so finding a copy bundled inside *any*
-application is treated as a strong signal of a custom / hostile trust anchor
-and is reported by default.
+## Verifying the install
 
-A companion entry — the **emSign Root CA - G1** (RSA, same `O=eMudhra`,
-SHA-256 `40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367`),
-which *is* a normally Mozilla-trusted root — is also in the watchlist but is
-reported only under `--strict`.
-
-The exact matching is done by **SHA-256 fingerprint** (authoritative), with
-SHA-1 and serial+subject as fallbacks.
-
-## Requirements
-
-| Dependency | Purpose |
-| --- | --- |
-| Python ≥ 3.9 | Runtime |
-| `cryptography` | Parsing PEM / DER X.509 certificates |
-| `pytest` (optional) | Running the test suite |
-
-## Installation
+After installing, confirm the bundled reference certificate reproduces the
+published fingerprint:
 
 ```sh
-pip install .
-```
-
-After that the `emsignG3scan` command (and `python -m emsignG3scan`) are available.
-
-## Usage
-
-```sh
-emsignG3scan                            # scan the current directory
-emsignG3scan /opt/myapp                 # scan one app / tree
-emsignG3scan --strict /Applications     # also flag the related G1 root
-emsignG3scan --all /opt/myapp           # dump *every* cert found (not just the watchlist)
-emsignG3scan --format json /opt/myapp   # machine-readable output
-emsignG3scan --no-extract /opt/myapp    # don't unpack archives; scan raw bytes only
-emsignG3scan --max-size 2GiB /          # scan a whole filesystem (large files allowed)
-emsignG3scan --verify                   # confirm bundled reference PEMs match fingerprints
-```
-
-Flags:
-
-* `--strict` — in addition to compromised roots, also report **related** roots
-  from the same operator (e.g. emSign G1).
-* `--all` — report every certificate the scanner extracts, with `matches` set
-  to `null` when a cert is *not* on the watchlist. Useful for auditing a whole
-  bundle's trust store.
-* `--format {text,json}` — output format (default `text`).
-* `--no-extract` — disable archive extraction; scan each file's raw bytes.
-  Faster, but will miss certs hidden inside compressed archives (e.g. the
-  members of a `.apk`/`.jar`).
-* `--max-size SIZE` — skip files larger than `SIZE` (e.g. `256MiB`, `2GiB`).
-  `0` disables the limit. Default `256MiB`.
-* `--max-depth N` — maximum archive nesting depth to unpack (default `4`).
-* `--follow-symlinks` — follow symlinks when walking a directory tree.
-* `--verify` — verify the reference PEMs shipped in the package against the
-  embedded fingerprints, then exit.
-
-**Exit status:** `0` = no watchlist match found, `1` = at least one match,
-`2` = usage / operational error.
-
-What gets scanned:
-
-* Plain PEM / `TRUSTED CERTIFICATE` bundles (`.pem`, `.crt`, `cacert.pem`).
-* Raw DER certificates compiled into binaries / `.so` / `.dll` / `.dylib`.
-* Archives, unpacked recursively up to `--max-depth`: `zip` / `jar` / `apk` /
-  `ipa` / `aar`, `gzip`, `tar` (incl. `tar.gz`).
-* `/proc`, `/sys`, `/dev`, `/run` are skipped automatically.
-
-## Example
-
-```
-$ emsignG3scan /opt/myapp
-emsignG3scan: scanned /opt/myapp
-  files scanned: 4 | certs found: 6 | watchlist hits: 3
-
-[COMPROMISED] emSign ECC Root CA - G3
-        source : /opt/myapp/lib/native.so
-        encoding: der @ offset 4
-        subject : CN=emSign ECC Root CA - G3,O=eMudhra Technologies Limited,OU=emSign PKI,C=IN
-        serial  : 3cf607a968700eda8b84
-        sha256  : 86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b
-        validity: 2018-02-18T18:30:00 → 2043-02-18T18:30:00
-        reason  : eMudhra / emSign EC P-384 root CA, G3 generation ...
-```
-
-## JSON output
-
-```json
-{
-  "tool": "emsignG3scan",
-  "scanned_path": "/opt/myapp",
-  "files_scanned": 4,
-  "certs_found": 6,
-  "watchlist_entries": ["emSign ECC Root CA - G3", "emSign Root CA - G1"],
-  "hits": [
-    {
-      "source": "/opt/myapp/lib/native.so",
-      "encoding": "der",
-      "offset": 4,
-      "sha256": "86a1ecba…",
-      "subject": "CN=emSign ECC Root CA - G3,…",
-      "matches": { "label": "emSign ECC Root CA - G3", "severity": "compromised", "reason": "…" }
-    }
-  ]
-}
-```
-
-## Verifying integrity
-
-`emsignG3scan verify` re-parses the reference PEMs shipped under
-`emsignG3scan/data/` and checks that their SHA-256 fingerprints match the values
-hard-coded in `emsignG3scan/signatures.py`.  A failure means the bundled data has
-been tampered with (or the watchlist was edited inconsistently) and you should
-not trust the scan results:
-
-```sh
-emsignG3scan verify
+emsignG3scan --verify
 # emsignG3scan verify: OK — bundled reference certs match the embedded watchlist fingerprints.
-```
-
-## Extending the watchlist
-
-Roots live in `emsignG3scan/signatures.py` (the `KNOWN_ROOTS` list).  Add an entry
-with the cert's SHA-256 / SHA-1 / serial / subject, plus a matching reference PEM
-under `emsignG3scan/data/` and an entry in `load_reference_cert`'s mapping, then
-run `emsignG3scan verify` to confirm consistency.
-
-## Tests
-
-```sh
-pytest
 ```
 
 ## License
