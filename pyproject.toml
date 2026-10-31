@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emsignG3scan"
+version = "0.1.0"
+description = "Find bundled (compromised) root CA certificates inside application bundles and binaries."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "emsignG3scan contributors" }]
+keywords = ["certificate", "security", "root-ca", "scanner", "bundle", "x509", "fingerprint"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Security",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "cryptography>=42.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+emsignG3scan = "emsignG3scan.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["emsignG3scan*"]
+
+[tool.setuptools.package-data]
+emsignG3scan = ["data/*.pem"]
