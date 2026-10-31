@@ -8,6 +8,12 @@ SHA-256 `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b`).
 Apps that ship their own trust store can keep trusting a root long after the
 operating system has distrusted it — this tool finds those bundled copies.
 
+> **Trademark notice:** `emSign` and `eMudhra` are trademarks of their
+> respective owners. This tool only references them descriptively — by the
+> certificate's **CN** and **SHA-256 fingerprint** — to identify a specific,
+> publicly-known root certificate that has been flagged as compromised. It
+> implies no endorsement by, affiliation with, or relationship to either entity.
+
 **Requirements:** Python **3.9+** and `pip`. `cryptography` (the only dependency)
 ships prebuilt wheels for all major OS/arch combinations, so **no compiler** is
 needed. No `git` binary is required to *run* the tool.
