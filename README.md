@@ -14,91 +14,65 @@ operating system has distrusted it — this tool finds those bundled copies.
 > publicly-known root certificate that has been flagged as compromised. It
 > implies no endorsement by, affiliation with, or relationship to either entity.
 
-**Requirements:** Python **3.9+** and `pip`. `cryptography` (the only dependency)
-ships prebuilt wheels for all major OS/arch combinations, so **no compiler** is
-needed. No `git` binary is required to *run* the tool.
+**Requirements:** none to *run* it — it is a single self-contained binary.
+To *build* it you need [Rust](https://rustup.rs) 1.79 or newer; no C compiler
+or system libraries are required.
 
 ---
 
-## Quick start (any OS)
+## Install
+
+### Download a prebuilt binary (no Rust needed)
+
+Grab the archive for your platform from the
+[Releases page](https://github.com/displacement/emsignG3scan/releases/latest):
+
+| Platform | File |
+| --- | --- |
+| macOS, Apple Silicon | `emsignG3scan-<version>-aarch64-apple-darwin.tar.gz` |
+| macOS, Intel | `emsignG3scan-<version>-x86_64-apple-darwin.tar.gz` |
+| Linux, x86_64 (static, any distro) | `emsignG3scan-<version>-x86_64-unknown-linux-musl.tar.gz` |
+| Linux, arm64 (static, any distro) | `emsignG3scan-<version>-aarch64-unknown-linux-musl.tar.gz` |
+| Windows, x86_64 | `emsignG3scan-<version>-x86_64-pc-windows-msvc.zip` |
+| Windows, arm64 | `emsignG3scan-<version>-aarch64-pc-windows-msvc.zip` |
 
 ```sh
-# 1. Clone
-git clone https://github.com/displacement/emsignG3scan.git
-cd emsignG3scan
-
-# 2. Install (pick one)
-python -m pip install .            # system/user install
-# or, recommended: pipx (isolated)
-pipx install .
-
-# 3. Run
-emsignG3scan /opt/myapp            # scan for the compromised G3 root
-emsignG3scan --verify              # confirm bundled reference PEMs are intact
-emsignG3scan --help
+# macOS / Linux example
+tar xzf emsignG3scan-*-aarch64-apple-darwin.tar.gz
+./emsignG3scan-*/emsignG3scan --verify
 ```
 
----
+Verify the download against `SHA256SUMS.txt` from the same release:
+`shasum -a 256 -c SHA256SUMS.txt --ignore-missing` (macOS/Linux) or
+`Get-FileHash <file>` (PowerShell).
 
-## Per-OS instructions
+> **macOS:** binaries downloaded through a browser are quarantined by
+> Gatekeeper because they are not Apple-notarized. Either fetch with `curl`
+> (which doesn't set the flag) or clear it:
+> `xattr -d com.apple.quarantine ./emsignG3scan`.
+> **Windows:** SmartScreen may warn about an unsigned executable; choose
+> *More info → Run anyway*.
 
-Pick the tab for your operating system. Each section assumes a normal
-**developer** install (a terminal plus package manager).
-
-### Linux (Ubuntu / Debian, Fedora / RHEL, Arch, …)
+### Build from source
 
 ```sh
-# Install prerequisites (one command per distro)
-sudo apt  install -y git python3 python3-pip        # Debian/Ubuntu
-sudo dnf  install -y git python3 python3-pip        # Fedora
-sudo pacman -S --noconfirm git python python-pip    # Arch
+# Install to ~/.cargo/bin (Linux, macOS, Windows)
+cargo install --git https://github.com/displacement/emsignG3scan
 
-# Clone + install
+# or clone and build
 git clone https://github.com/displacement/emsignG3scan.git
 cd emsignG3scan
-python3 -m pip install .          # or: pipx install .
-
-emsignG3scan --help
+cargo build --release
+./target/release/emsignG3scan --help
 ```
+
+Get Rust with `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+(macOS / Linux) or the installer from <https://rustup.rs> (Windows). The
+resulting binary has no runtime dependencies.
 
 > Tip: to scan the whole filesystem for bundled roots, run
 > `emsignG3scan --max-size 2GiB /` (skips `/proc`, `/sys`, `/dev`, `/run`
 > automatically).
-
-### macOS (Intel **and** Apple Silicon)
-
-```sh
-# Prerequisites via Homebrew (https://brew.sh)
-brew install git python
-
-# Clone + install
-git clone https://github.com/displacement/emsignG3scan.git
-cd emsignG3scan
-python3 -m pip install .          # or: pipx install .
-brew install pipx && pipx install .   # optional, isolated
-
-emsignG3scan --help
-```
-
-> `cryptography` has native arm64 **and** amd64 wheels, so this works on both
-> Apple Silicon and Intel Macs with no extra build tools.
-
-### Windows 10 / 11
-
-```bat
-:: 1. Install Git for Windows + Python 3.11+ from https://python.org
-::    (check "Add Python to PATH" during the Python installer)
-::    Then open Git Bash (or a regular PowerShell/cmd).
-
-:: 2. Clone + install
-git clone https://github.com/displacement/emsignG3scan.git
-cd emsignG3scan
-python -m pip install .          :: or: pipx install .
-
-emsignG3scan --help
-```
-
-> PowerShell note: `python` maps to `python.exe`; if that fails, try `py`.
 
 ---
 
@@ -111,17 +85,41 @@ emsignG3scan --help
 | `emsignG3scan --all /opt` | Dump every bundled certificate, not just watchlist hits |
 | `emsignG3scan --format json /opt` | Machine-readable JSON output |
 | `emsignG3scan --no-extract /opt` | Don't unpack archives; scan raw bytes only |
-| `emsignG3scan --verify` | Confirm the shipped reference PEMs match the watchlist |
+| `emsignG3scan --max-size 1GiB /opt` | Skip files above a size (`0` = no limit; default `256MiB`) |
+| `emsignG3scan --verify` | Confirm the embedded reference PEMs match the watchlist |
+
+Exit status: `0` no watchlist match, `1` at least one match, `2` usage error.
+
+Scans plain files, directory trees, and (recursively, up to `--max-depth`)
+zip/jar/apk, tar, and gzip archives, looking for PEM blocks and raw DER
+certificates.
 
 ## Verifying the install
-
-After installing, confirm the bundled reference certificate reproduces the
-published fingerprint:
 
 ```sh
 emsignG3scan --verify
 # emsignG3scan verify: OK — bundled reference certs match the embedded watchlist fingerprints.
 ```
+
+## Development
+
+```sh
+cargo test            # unit + end-to-end tests
+cargo build --release
+```
+
+The reference PEMs in `data/` are embedded into the binary at build time.
+
+### Cutting a release
+
+1. Bump `version` in `Cargo.toml` and commit (the release job refuses a tag
+   that doesn't match it).
+2. `git tag v0.1.0 && git push origin v0.1.0`
+
+GitHub Actions (`.github/workflows/release.yml`) then builds, tests, and
+packages all six platforms and publishes the Release with `SHA256SUMS.txt`.
+To try the build matrix without publishing, run the workflow manually from the
+Actions tab.
 
 ## License
 

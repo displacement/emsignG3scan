@@ -1,0 +1,40 @@
+[package]
+name = "emsignG3scan"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79"
+description = "Find bundled (compromised) root CA certificates inside application bundles and binaries."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/displacement/emsignG3scan"
+
+[lib]
+name = "emsign_g3_scan"
+path = "src/lib.rs"
+
+[[bin]]
+name = "emsignG3scan"
+path = "src/main.rs"
+
+[dependencies]
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+flate2 = "1"
+memchr = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+tar = "0.4"
+walkdir = "2"
+x509-parser = "0.16"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
