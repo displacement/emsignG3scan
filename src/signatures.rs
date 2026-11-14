@@ -69,9 +69,10 @@ pub static KNOWN_ROOTS: [RootWatch; 2] = [
     },
     RootWatch {
         label: "emSign Root CA - G1",
-        severity: "related",
-        reason: "eMudhra / emSign RSA root (same operator as the G3 root). A normally-trusted \
-                 Mozilla/NSS root; reported only with --strict.",
+        severity: "untrusted",
+        reason: "eMudhra / emSign RSA root (same operator as the G3 root). An untrusted \
+                 target: a bundled copy inside an application is a hostile / untrusted \
+                 trust anchor and should be removed.",
         sha256: "40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367",
         sha1: "8ac7ad8f73ac4ec1b5754da540f4fccf7cb58e8c",
         serial: "31f5e4620c6c58edd6d8",

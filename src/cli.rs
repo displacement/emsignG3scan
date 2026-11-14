@@ -17,7 +17,7 @@ enum Format {
 #[derive(Parser)]
 #[command(
     name = "emsignG3scan",
-    about = "Scan application bundles, binaries and archives for bundled (and known-compromised) \
+    about = "Scan application bundles, binaries and archives for bundled (and untrusted) \
              root CA certificates. By default only watchlist matches are reported; use --all to \
              dump everything found.",
     after_help = "Exit status is 0 when no watchlist match is found, 1 when at least one is, and \
@@ -27,10 +27,6 @@ struct Args {
     /// File or directory to scan (default: current dir)
     #[arg(default_value = ".")]
     path: PathBuf,
-
-    /// Also flag 'related' roots (e.g. the widely-trusted emSign G1 from the same operator)
-    #[arg(long)]
-    strict: bool,
 
     /// Report every certificate found, not only watchlist hits
     #[arg(long)]
@@ -88,13 +84,7 @@ fn parse_size(text: &str) -> Option<u64> {
 }
 
 fn is_reported(f: &FoundCert, args: &Args) -> bool {
-    if args.all {
-        return true;
-    }
-    match f.watch {
-        Some(w) => w.severity == "compromised" || (args.strict && w.severity == "related"),
-        None => false,
-    }
+    args.all || f.watch.is_some()
 }
 
 fn print_text(findings: &[&FoundCert], scanned: &Path, total_found: usize, files_scanned: usize, all: bool) {
@@ -253,10 +243,7 @@ pub fn run() -> i32 {
         Format::Text => print_text(&shown, &args.path, total_found, files_scanned, args.all),
     }
 
-    // --all never drives the exit code.
-    let hit = findings.iter().any(|f| {
-        f.watch
-            .is_some_and(|w| w.severity == "compromised" || (args.strict && w.severity == "related"))
-    });
+    // --all never drives the exit code: any watchlist match does.
+    let hit = findings.iter().any(|f| f.watch.is_some());
     if hit { 1 } else { 0 }
 }

@@ -7,6 +7,8 @@ use std::process::{Command, Output};
 
 const G3_PEM: &[u8] = include_bytes!("../data/emSign_ECC_Root_CA_G3.pem");
 const G1_PEM: &[u8] = include_bytes!("../data/emSign_Root_CA_G1.pem");
+/// Self-signed certificate that is NOT on the watchlist.
+const OTHER_PEM: &[u8] = include_bytes!("../data/test_cert.pem");
 const G3_SHA256: &str = "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b";
 
 fn run(args: &[&str]) -> (i32, String, String) {
@@ -41,15 +43,23 @@ fn finds_compromised_cert_and_exits_1() {
 }
 
 #[test]
-fn related_root_only_reported_with_strict() {
+fn g1_root_flagged_by_default() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("g1.pem"), G1_PEM).unwrap();
     let (rc, out, _) = run(&[p(dir.path())]);
-    assert_eq!(rc, 0);
-    assert!(out.contains("no watchlist match"));
-    let (rc, out, _) = run(&["--strict", p(dir.path())]);
     assert_eq!(rc, 1);
-    assert!(out.contains("[RELATED] emSign Root CA - G1"));
+    assert!(out.contains("[UNTRUSTED] emSign Root CA - G1"));
+}
+
+#[test]
+fn both_roots_flagged_by_default() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("g3.pem"), G3_PEM).unwrap();
+    fs::write(dir.path().join("g1.pem"), G1_PEM).unwrap();
+    let (rc, out, _) = run(&[p(dir.path())]);
+    assert_eq!(rc, 1);
+    assert!(out.contains("[COMPROMISED] emSign ECC Root CA - G3"));
+    assert!(out.contains("[UNTRUSTED] emSign Root CA - G1"));
 }
 
 #[test]
@@ -67,10 +77,10 @@ fn json_output_has_hits() {
 #[test]
 fn all_lists_non_watchlist_certs_but_does_not_change_exit_code() {
     let dir = tempfile::tempdir().unwrap();
-    fs::write(dir.path().join("g1.pem"), G1_PEM).unwrap();
+    fs::write(dir.path().join("other.pem"), OTHER_PEM).unwrap();
     let (rc, out, _) = run(&["--all", p(dir.path())]);
     assert_eq!(rc, 0);
-    assert!(out.contains("emSign Root CA - G1"));
+    assert!(out.contains("Example Test CA"));
 }
 
 #[test]

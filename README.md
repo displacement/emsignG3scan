@@ -1,9 +1,12 @@
 # About emsignG3scan
 
 `emsignG3scan` scans application bundles, native binaries, and archives for
-**bundled root-CA certificates** and flags the **compromised emudhra / emSign G3
-root** (`CN=emSign ECC Root CA - G3`, O=*eMudhra Technologies Limited*,
-SHA-256 `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b`).
+**bundled root-CA certificates** and flags both emudhra / emSign roots —
+the **compromised G3 root** (`CN=emSign ECC Root CA - G3`,
+SHA-256 `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b`)
+and the **untrusted G1 root** (`CN=emSign Root CA - G1`, same operator,
+SHA-256 `40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367`).
+Both are untrusted targets; bundled copies should be removed.
 
 Apps that ship their own trust store can keep trusting a root long after the
 operating system has distrusted it — this tool finds those bundled copies.
@@ -80,8 +83,7 @@ resulting binary has no runtime dependencies.
 
 | Command | What it does |
 | --- | --- |
-| `emsignG3scan /opt/myapp` | Flag the compromised G3 root (default; exit `1` if found) |
-| `emsignG3scan --strict /opt` | Also flag the related G1 root from the same operator |
+| `emsignG3scan /opt/myapp` | Flag both the compromised G3 root and the untrusted G1 root (default; exit `1` if found) |
 | `emsignG3scan --all /opt` | Dump every bundled certificate, not just watchlist hits |
 | `emsignG3scan --format json /opt` | Machine-readable JSON output |
 | `emsignG3scan --no-extract /opt` | Don't unpack archives; scan raw bytes only |
