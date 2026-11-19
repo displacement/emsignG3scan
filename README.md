@@ -1,12 +1,16 @@
 # About emsignG3scan
 
 `emsignG3scan` scans application bundles, native binaries, and archives for
-**bundled root-CA certificates** and flags both emudhra / emSign roots —
+**bundled root-CA certificates** and flags three eMudhra / emSign roots —
 the **compromised G3 root** (`CN=emSign ECC Root CA - G3`,
 SHA-256 `86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b`)
-and the **untrusted G1 root** (`CN=emSign Root CA - G1`, same operator,
-SHA-256 `40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367`).
-Both are untrusted targets; bundled copies should be removed.
+the **untrusted G1 root** (`CN=emSign Root CA - G1`, same operator,
+SHA-256 `40f6af0346a99aa1cd1d555a4e9cce62c7f9634603ee406615833dc8c8d00367`),
+and the **untrusted C1 root** (`CN=emSign Root CA - C1`, eMudhra Inc,
+SHA-256 `125609aa301da0a249b97a8239cb6a34216f44dcac9f3954b14292f2e8c8608f`).
+All three are watchlist targets; bundled copies should be removed under this
+tool's policy. The `untrusted` flag is a watchlist classification, not a claim
+about the current trust status in every operating system or browser.
 
 Apps that ship their own trust store can keep trusting a root long after the
 operating system has distrusted it — this tool finds those bundled copies.
@@ -83,7 +87,7 @@ resulting binary has no runtime dependencies.
 
 | Command | What it does |
 | --- | --- |
-| `emsignG3scan /opt/myapp` | Flag both the compromised G3 root and the untrusted G1 root (default; exit `1` if found) |
+| `emsignG3scan /opt/myapp` | Flag G3 (compromised), G1 and C1 (untrusted) by default; exit `1` if any are found |
 | `emsignG3scan --all /opt` | Dump every bundled certificate, not just watchlist hits |
 | `emsignG3scan --format json /opt` | Machine-readable JSON output |
 | `emsignG3scan --no-extract /opt` | Don't unpack archives; scan raw bytes only |
@@ -111,6 +115,9 @@ cargo build --release
 ```
 
 The reference PEMs in `data/` are embedded into the binary at build time.
+C1's reference certificate comes from the
+[emSign repository](https://repository.emsign.com/certs/emSignRootCAC1.crt)
+(published as DER, stored here as PEM).
 
 ### Cutting a release
 

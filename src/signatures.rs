@@ -52,7 +52,7 @@ fn normalise_name(rfc4514: &str) -> String {
     parts.join(",")
 }
 
-pub static KNOWN_ROOTS: [RootWatch; 2] = [
+pub static KNOWN_ROOTS: [RootWatch; 3] = [
     RootWatch {
         label: "emSign ECC Root CA - G3",
         severity: "compromised",
@@ -80,6 +80,20 @@ pub static KNOWN_ROOTS: [RootWatch; 2] = [
         not_before: "2018-02-18T18:30:00Z",
         not_after: "2043-02-18T18:30:00Z",
         pem: include_bytes!("../data/emSign_Root_CA_G1.pem"),
+    },
+    RootWatch {
+        label: "emSign Root CA - C1",
+        severity: "untrusted",
+        reason: "eMudhra Inc / emSign RSA root, C1 generation. Flagged by this tool's \
+                 watchlist policy as an untrusted bundled trust anchor.",
+        sha256: "125609aa301da0a249b97a8239cb6a34216f44dcac9f3954b14292f2e8c8608f",
+        sha1: "e72ef1dffcb20928cf5dd4d56737b151cb864f01",
+        serial: "aecf00bac4cf32f843b2",
+        subject: "CN=emSign Root CA - C1,O=eMudhra Inc,OU=emSign PKI,C=US",
+        not_before: "2018-02-18T18:30:00Z",
+        not_after: "2043-02-18T18:30:00Z",
+        // Source: https://repository.emsign.com/certs/emSignRootCAC1.crt
+        pem: include_bytes!("../data/emSign_Root_CA_C1.pem"),
     },
 ];
 

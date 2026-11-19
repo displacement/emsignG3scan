@@ -7,9 +7,11 @@ use std::process::{Command, Output};
 
 const G3_PEM: &[u8] = include_bytes!("../data/emSign_ECC_Root_CA_G3.pem");
 const G1_PEM: &[u8] = include_bytes!("../data/emSign_Root_CA_G1.pem");
+const C1_PEM: &[u8] = include_bytes!("../data/emSign_Root_CA_C1.pem");
 /// Self-signed certificate that is NOT on the watchlist.
 const OTHER_PEM: &[u8] = include_bytes!("../data/test_cert.pem");
 const G3_SHA256: &str = "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b";
+const C1_SHA256: &str = "125609aa301da0a249b97a8239cb6a34216f44dcac9f3954b14292f2e8c8608f";
 
 fn run(args: &[&str]) -> (i32, String, String) {
     let Output { status, stdout, stderr } =
@@ -52,14 +54,40 @@ fn g1_root_flagged_by_default() {
 }
 
 #[test]
-fn both_roots_flagged_by_default() {
+fn c1_root_flagged_by_default() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("c1.pem"), C1_PEM).unwrap();
+    let (rc, out, _) = run(&[p(dir.path())]);
+    assert_eq!(rc, 1);
+    assert!(out.contains("[UNTRUSTED] emSign Root CA - C1"));
+    assert!(out.contains(C1_SHA256));
+}
+
+#[test]
+fn all_three_roots_flagged_by_default() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("g3.pem"), G3_PEM).unwrap();
     fs::write(dir.path().join("g1.pem"), G1_PEM).unwrap();
+    fs::write(dir.path().join("c1.pem"), C1_PEM).unwrap();
     let (rc, out, _) = run(&[p(dir.path())]);
     assert_eq!(rc, 1);
     assert!(out.contains("[COMPROMISED] emSign ECC Root CA - G3"));
     assert!(out.contains("[UNTRUSTED] emSign Root CA - G1"));
+    assert!(out.contains("[UNTRUSTED] emSign Root CA - C1"));
+}
+
+#[test]
+fn c1_in_archive_has_json_watchlist_metadata() {
+    let dir = tempfile::tempdir().unwrap();
+    let jar = dir.path().join("app.jar");
+    jar_with(&jar, "META-INF/c1.pem", C1_PEM);
+    let (rc, out, _) = run(&["--format", "json", p(&jar)]);
+    assert_eq!(rc, 1);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["hits"].as_array().unwrap().len(), 1);
+    assert_eq!(v["hits"][0]["sha256"], C1_SHA256);
+    assert_eq!(v["hits"][0]["matches"]["label"], "emSign Root CA - C1");
+    assert_eq!(v["hits"][0]["matches"]["severity"], "untrusted");
 }
 
 #[test]

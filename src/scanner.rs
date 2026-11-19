@@ -587,6 +587,27 @@ mod tests {
     }
 
     #[test]
+    fn every_root_matches_pem_der_and_fallback_identifiers() {
+        for root in &KNOWN_ROOTS {
+            let blk = &find_pem_blocks(root.pem)[0];
+            let der = pem_to_der(&root.pem[blk.b64.0..blk.b64.1]).unwrap();
+            for bytes in [root.pem, der.as_slice()] {
+                let mut found = scan_bytes(bytes, "reference");
+                attach_watch(&mut found);
+                assert_eq!(found.len(), 1);
+                let cert = &found[0];
+                assert_eq!(cert.sha256, root.sha256);
+                assert_eq!(cert.sha1, root.sha1);
+                assert_eq!(cert.serial, root.serial);
+                assert_eq!(cert.watch.unwrap().label, root.label);
+                assert!(root.matches("", &cert.sha1, "", ""));
+                assert!(root.matches("", "", &cert.serial, &cert.subject));
+                assert!(!root.matches("", "", &cert.serial, "CN=Other CA"));
+            }
+        }
+    }
+
+    #[test]
     fn subject_and_validity_formats() {
         let found = scan_bytes(g3_pem(), "t");
         assert_eq!(found[0].subject, found[0].issuer);
