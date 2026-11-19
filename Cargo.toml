@@ -1,6 +1,6 @@
 [package]
 name = "emsignG3scan"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.79"
 description = "Find bundled (compromised) root CA certificates inside application bundles and binaries."
